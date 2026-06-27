@@ -1,4 +1,4 @@
-# PageIndex — Complete Guide
+# PageIndex - Page-Level Retrieval for RAG Systems
 
 > **A smarter retrieval strategy for structured documents using page-level indexing, local embeddings, and free LLMs (Groq Llama).**
 
@@ -213,7 +213,7 @@ PageIndex retrieves:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐  │
-│  │   Document   │───▶│  Page Extractor  │───▶│  Page Store  │  │
+│  │   Document   │───▶│  Page Extractor  │───▶│  Page Store    │
 │  │  (PDF/Text)  │    │  (PyMuPDF)       │    │  [P1..PN]    │  │
 │  └──────────────┘    └──────────────────┘    └──────┬───────┘  │
 │                                                      │          │
