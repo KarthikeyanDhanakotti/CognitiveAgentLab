@@ -1,59 +1,24 @@
 """
-PageIndex vs Chunked RAG — Employee Policy Q&A
-===============================================
-LLM   : Groq (free tier) — llama-3.3-70b-versatile
-Embed : sentence-transformers (local, fully free — no API needed)
+pageindex.py — Page-Level Retrieval for RAG Systems
+=====================================================
+Index full document pages (not chunks) so tables, numbered steps,
+and structured content are never split across retrieval boundaries.
 
-──────────────────────────────────────────────────────────────────────
-HOW TO RUN (PowerShell)
-──────────────────────────────────────────────────────────────────────
-Step 1 — Get a free Groq API key:
-    https://console.groq.com/keys
+LLM   : Groq  — llama-3.3-70b-versatile  (free tier)
+Embed : sentence-transformers             (local, no API cost)
 
-Step 2 — Open PowerShell and run:
-
-    cd "C:\Users\kartdh\OneDrive - Microsoft\Desktop\Model\Domain_Intent"
-
-    $env:GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxxxxx"
-
-    # Full demo: PageIndex vs ChunkedRAG side-by-side
-    .\.venv\Scripts\python.exe page_index_groq.py
-
-    # Interactive mode: ask your own questions
-    .\.venv\Scripts\python.exe page_index_groq.py interactive
-
-    # Use with a real PDF (pass the path as argument)
-    .\.venv\Scripts\python.exe page_index_groq.py path\to\your.pdf
-
-Note: First run downloads the embedding model (~22 MB) automatically.
-──────────────────────────────────────────────────────────────────────
-
-Install:
-    pip install groq sentence-transformers scikit-learn numpy PyMuPDF
-
-Get a free Groq API key at: https://console.groq.com/keys
-
-Set env variable:
-    $env:GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxxxxx"
-
-Scenario
---------
-A 6-page HR handbook where each page is one complete policy topic
-(parental leave, expenses, remote work, etc.).
-
-Problem with Chunked RAG:
-  - A 300-char chunk may cut a table in half or split a numbered list mid-step.
-  - GPT / Llama then gets fragments and has to guess the missing context.
-
-Solution with PageIndex:
-  - Each full page is embedded as one unit.
-  - Retrieval returns complete pages — tables and steps are always intact.
-  - Llama reads the whole page exactly as a human would.
+Quick start:
+    pip install -r requirements.txt
+    $env:GROQ_API_KEY = "gsk_xxxx"
+    python pageindex.py                   # demo
+    python pageindex.py interactive       # Q&A loop
+    python pageindex.py your_doc.pdf      # use your own PDF
 """
 
 from __future__ import annotations
 
 import os
+import sys
 import textwrap
 from dataclasses import dataclass, field
 from typing import List, Tuple
@@ -63,31 +28,232 @@ from groq import Groq
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# ── Clients ──────────────────────────────────────────────────────────────────
 
-groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
+# ── Configuration ─────────────────────────────────────────────────────────────
 
-# Local embedding model — downloaded once, runs offline after that.
-# all-MiniLM-L6-v2  : 22 MB, fast, good for semantic search
-# all-mpnet-base-v2  : 420 MB, higher quality (swap if you want better accuracy)
-print("Loading embedding model (first run downloads ~22 MB) …")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-print("Embedding model ready.\n")
-
-CHAT_MODEL = "llama-3.3-70b-versatile"   # best free Llama on Groq (128k context)
+GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")
+CHAT_MODEL    = "llama-3.3-70b-versatile"   # best free Llama on Groq (128k ctx)
+EMBED_MODEL   = "all-MiniLM-L6-v2"          # 22 MB local model, no API needed
+DEFAULT_TOP_K = 2                            # pages to retrieve per query
 
 
-# ── Synthetic HR handbook (simulates pages parsed from a PDF) ────────────────
+# ── Clients (lazy-loaded) ─────────────────────────────────────────────────────
 
-HANDBOOK_PAGES: List[dict] = [
+_groq_client: Groq | None = None
+_embedder: SentenceTransformer | None = None
+
+
+def get_groq() -> Groq:
+    global _groq_client
+    if _groq_client is None:
+        if not GROQ_API_KEY:
+            raise EnvironmentError(
+                "GROQ_API_KEY not set.\n"
+                "Get a free key at https://console.groq.com/keys\n"
+                "Then run:  $env:GROQ_API_KEY = 'gsk_xxxx'"
+            )
+        _groq_client = Groq(api_key=GROQ_API_KEY)
+    return _groq_client
+
+
+def get_embedder() -> SentenceTransformer:
+    global _embedder
+    if _embedder is None:
+        print("Loading embedding model (downloads ~22 MB on first run) ...")
+        _embedder = SentenceTransformer(EMBED_MODEL)
+        print("Embedding model ready.\n")
+    return _embedder
+
+
+# ── Core types ────────────────────────────────────────────────────────────────
+
+@dataclass
+class PageNode:
+    """Represents one indexed page."""
+    page_num  : int
+    title     : str
+    content   : str
+    embedding : np.ndarray = field(default_factory=lambda: np.array([]))
+
+
+@dataclass
+class RetrievalResult:
+    """A retrieved page with its similarity score."""
+    node  : PageNode
+    score : float
+
+    def __str__(self) -> str:
+        return (
+            f"=== Page {self.node.page_num}: {self.node.title} "
+            f"(score={self.score:.3f}) ===\n{self.node.content}"
+        )
+
+
+# ── PageIndex ─────────────────────────────────────────────────────────────────
+
+class PageIndex:
+    """
+    Indexes documents at the page level.
+
+    Each page becomes one vector in the index. Retrieval returns complete
+    pages — preserving tables, numbered steps, and structured content that
+    chunked RAG would split across multiple fragments.
+
+    Usage:
+        pi = PageIndex()
+        pi.build(pages)            # pages = list of {"page", "title", "content"}
+        answer = pi.query("...")
+    """
+
+    def __init__(self) -> None:
+        self.nodes: List[PageNode] = []
+
+    # ── Index building ────────────────────────────────────────────────────────
+
+    def build(self, pages: List[dict]) -> "PageIndex":
+        """
+        Embed every page and build the index.
+
+        Args:
+            pages: list of dicts with keys: page (int), title (str), content (str)
+
+        Returns:
+            self  (for chaining)
+        """
+        if not pages:
+            raise ValueError("pages list is empty")
+
+        print(f"[PageIndex] Building index for {len(pages)} page(s) ...")
+        texts = [f"{p['title']}\n\n{p['content']}" for p in pages]
+        vecs  = get_embedder().encode(texts, show_progress_bar=False,
+                                      convert_to_numpy=True).astype(np.float32)
+
+        self.nodes = [
+            PageNode(
+                page_num  = p["page"],
+                title     = p["title"],
+                content   = p["content"],
+                embedding = v,
+            )
+            for p, v in zip(pages, vecs)
+        ]
+        print(f"[PageIndex] Ready — {len(self.nodes)} pages indexed.\n")
+        return self
+
+    # ── Retrieval ─────────────────────────────────────────────────────────────
+
+    def retrieve(self, query: str, top_k: int = DEFAULT_TOP_K) -> List[RetrievalResult]:
+        """
+        Find the most relevant pages for a query.
+
+        Args:
+            query : natural language question
+            top_k : number of pages to return
+
+        Returns:
+            list of RetrievalResult sorted by similarity (highest first)
+        """
+        if not self.nodes:
+            raise RuntimeError("Index is empty. Call build() first.")
+
+        qvec   = get_embedder().encode([query], convert_to_numpy=True).astype(np.float32)
+        ivecs  = np.stack([n.embedding for n in self.nodes])
+        scores = cosine_similarity(qvec, ivecs)[0]
+
+        ranked = sorted(
+            zip(self.nodes, scores.tolist()),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        return [RetrievalResult(node=n, score=s) for n, s in ranked[:top_k]]
+
+    # ── Answer generation ─────────────────────────────────────────────────────
+
+    def query(self, question: str, top_k: int = DEFAULT_TOP_K,
+              verbose: bool = True) -> str:
+        """
+        Retrieve relevant pages and generate an answer using Groq Llama.
+
+        Args:
+            question : user's question
+            top_k    : number of pages to retrieve
+            verbose  : print retrieved page numbers and scores
+
+        Returns:
+            answer string from Llama
+        """
+        hits = self.retrieve(question, top_k=top_k)
+
+        if verbose:
+            print(f"  Retrieved pages : {[h.node.page_num for h in hits]}")
+            print(f"  Scores          : {[round(h.score, 3) for h in hits]}")
+
+        context = "\n\n".join(str(h) for h in hits)
+
+        response = get_groq().chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant. Answer the user's question "
+                        "using ONLY the provided document pages. If a table or "
+                        "numbered list is present, preserve its structure. "
+                        "End your answer by citing the page number(s) used."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Document pages:\n{context}\n\nQuestion: {question}",
+                },
+            ],
+            temperature=0,
+            max_tokens=1024,
+        )
+        return response.choices[0].message.content
+
+
+# ── PDF loader ────────────────────────────────────────────────────────────────
+
+def load_pdf(pdf_path: str) -> List[dict]:
+    """
+    Parse a PDF into page dicts for PageIndex.
+
+    Args:
+        pdf_path : path to the PDF file
+
+    Returns:
+        list of {"page", "title", "content"} dicts (blank pages skipped)
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        raise ImportError("PyMuPDF required:  pip install PyMuPDF")
+
+    pages, doc = [], fitz.open(pdf_path)
+    for i, page in enumerate(doc, start=1):
+        text = page.get_text("text").strip()
+        if not text:
+            continue
+        title = text.splitlines()[0][:60]
+        pages.append({"page": i, "title": title, "content": text})
+    doc.close()
+
+    print(f"Loaded {len(pages)} text page(s) from: {pdf_path}\n")
+    return pages
+
+
+# ── Sample data (HR handbook) ─────────────────────────────────────────────────
+
+SAMPLE_PAGES: List[dict] = [
     {
         "page": 1,
         "title": "Welcome & Company Overview",
         "content": textwrap.dedent("""\
             Welcome to Contoso Corp!
-            We are a technology company founded in 2005. Our mission is to empower
-            every person on the planet to achieve more. This handbook covers all
-            policies effective January 2025. For questions contact hr@contoso.com.
+            Founded in 2005. Our mission: empower every person to achieve more.
+            This handbook covers all policies effective January 2025.
+            Questions? Contact hr@contoso.com
         """),
     },
     {
@@ -99,21 +265,19 @@ HANDBOOK_PAGES: List[dict] = [
             Eligibility: Employees who have completed 6 months of continuous service.
 
             Entitlements:
-            ┌─────────────────────────────┬──────────────┐
-            │ Leave Type                  │ Duration     │
-            ├─────────────────────────────┼──────────────┤
-            │ Maternity (birth/adoption)  │ 26 weeks     │
-            │ Paternity                   │ 6 weeks      │
-            │ Shared parental leave       │ Up to 37 wks │
-            └─────────────────────────────┴──────────────┘
+            | Leave Type                  | Duration     |
+            |-----------------------------|--------------|
+            | Maternity (birth/adoption)  | 26 weeks     |
+            | Paternity                   | 6 weeks      |
+            | Shared parental leave       | Up to 37 wks |
 
             How to apply:
             1. Notify your manager at least 8 weeks before the start date.
             2. Submit form HR-PL-01 to the HR portal.
-            3. HR will confirm entitlement within 5 business days.
+            3. HR confirms entitlement within 5 business days.
             4. Payroll adjustments are processed automatically.
 
-            Pay during leave: 100% for the first 16 weeks, 50% thereafter.
+            Pay during leave: 100% first 16 weeks, 50% thereafter.
         """),
     },
     {
@@ -122,20 +286,21 @@ HANDBOOK_PAGES: List[dict] = [
         "content": textwrap.dedent("""\
             EXPENSE REIMBURSEMENT POLICY
 
-            Eligible expenses: Travel, accommodation, client meals, and training costs
-            pre-approved by your manager.
+            Eligible: Travel, accommodation, client meals, pre-approved training.
 
             Limits:
-            • Hotel      : up to $250/night (major cities) or $180/night (other).
-            • Meals      : up to $75/day (no alcohol on company account).
-            • Air travel : economy class unless flight > 6 hours.
+            | Category    | Limit                                    |
+            |-------------|------------------------------------------|
+            | Hotel       | $250/night (major cities), $180 (other)  |
+            | Meals       | $75/day (no alcohol)                     |
+            | Air travel  | Economy (business if flight > 6 hours)   |
 
             Steps to claim:
-            1. Collect all original receipts (photos accepted for items < $25).
-            2. Log into the Expense Portal (portal.contoso.com/expenses).
-            3. Submit the claim within 30 days of the expense date.
-            4. Your manager approves within 5 business days.
-            5. Finance processes payment in the next payroll cycle.
+            1. Collect all receipts (photos ok for items < $25).
+            2. Log in at portal.contoso.com/expenses.
+            3. Submit within 30 days of the expense date.
+            4. Manager approves within 5 business days.
+            5. Finance pays in the next payroll cycle.
 
             Non-reimbursable: Fines, personal entertainment, mini-bar charges.
         """),
@@ -146,416 +311,129 @@ HANDBOOK_PAGES: List[dict] = [
         "content": textwrap.dedent("""\
             REMOTE WORK POLICY
 
-            Contoso supports a hybrid work model. Employees may work remotely up to
-            3 days per week with manager approval.
+            Hybrid model: Up to 3 remote days/week with manager approval.
 
             Requirements:
-            • Maintain a distraction-free, ergonomic home workspace.
-            • Be available on Teams during core hours: 10 AM – 3 PM local time.
-            • Attend all mandatory on-site days (currently Tuesday and Thursday).
-            • Use a company-approved VPN when accessing internal systems.
+            - Distraction-free, ergonomic home workspace.
+            - Available on Teams: 10 AM – 3 PM local time (core hours).
+            - Mandatory on-site days: Tuesday and Thursday.
+            - VPN required for all internal systems.
 
-            Equipment: Contoso provides a laptop and one monitor. Additional peripherals
-            are the employee's responsibility unless approved as an accessibility need.
+            Equipment: Contoso provides laptop + one monitor.
+            Additional peripherals are employee's responsibility unless
+            approved as an accessibility need.
 
-            Approval: Submit remote work agreement (form HR-RW-05) annually.
+            Approval: Submit form HR-RW-05 annually.
         """),
     },
     {
         "page": 5,
-        "title": "Code of Conduct",
-        "content": textwrap.dedent("""\
-            CODE OF CONDUCT
-
-            All employees must uphold Contoso's values: Respect, Integrity, Innovation.
-
-            Key expectations:
-            • Treat colleagues, customers, and partners with dignity.
-            • Report conflicts of interest to your manager or Ethics Hotline.
-            • Protect confidential information — do not share externally without approval.
-            • Zero tolerance for harassment, discrimination, or retaliation.
-
-            Violations:
-            Violations are investigated by HR and may result in disciplinary action
-            up to and including termination. Reports can be made anonymously via
-            ethics.contoso.com or by calling 1-800-555-0199 (24/7).
-        """),
-    },
-    {
-        "page": 6,
-        "title": "Annual Leave & Public Holidays",
+        "title": "Annual Leave",
         "content": textwrap.dedent("""\
             ANNUAL LEAVE
 
-            Accrual:
-            • Years 0–2:  18 days / year
-            • Years 3–5:  22 days / year
-            • Years 6+:   26 days / year
+            Accrual by tenure:
+            | Years of Service | Days / Year |
+            |------------------|-------------|
+            | 0 – 2 years      | 18 days     |
+            | 3 – 5 years      | 22 days     |
+            | 6+ years         | 26 days     |
 
             Rules:
-            1. Leave must be approved by your manager at least 2 weeks in advance.
-            2. Maximum carry-over is 5 days into the next calendar year.
+            1. Request approval at least 2 weeks in advance.
+            2. Max carry-over: 5 days into next calendar year.
             3. Unused leave beyond carry-over is forfeited (not paid out).
             4. Sick leave (10 days/year) is separate and does not accrue.
 
-            Public Holidays: 11 federal holidays; employees in states with additional
-            mandated holidays receive those too. See the HR portal for the full list.
+            Public Holidays: 11 federal holidays + state-mandated extras.
         """),
     },
 ]
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Helper: local embeddings via sentence-transformers
-# ═══════════════════════════════════════════════════════════════════════════════
+# ── Demo ──────────────────────────────────────────────────────────────────────
 
-def embed(texts: List[str]) -> np.ndarray:
-    """Return a (N, D) float32 embedding matrix using the local sentence model."""
-    vectors = embedder.encode(texts, show_progress_bar=False, convert_to_numpy=True)
-    return vectors.astype(np.float32)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Helper: call Groq Llama
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def llama_chat(system: str, user: str) -> str:
-    """Send a chat request to Groq and return the reply text."""
-    response = groq_client.chat.completions.create(
-        model=CHAT_MODEL,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user",   "content": user},
-        ],
-        temperature=0,
-        max_tokens=1024,
-    )
-    return response.choices[0].message.content
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 1.  PageIndex  — one embedding per page
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@dataclass
-class PageNode:
-    page_num  : int
-    title     : str
-    content   : str
-    embedding : np.ndarray = field(default_factory=lambda: np.array([]))
-
-
-class PageIndex:
-    """
-    Index where each document page is a single retrieval unit.
-
-    Benefits over chunked RAG:
-    ✔ Tables / numbered steps on the same page stay together.
-    ✔ No chunk-boundary artefacts (mid-sentence / mid-table splits).
-    ✔ Each retrieved unit is human-readable without extra stitching.
-    ✔ Natural citation: "See Page 3" rather than "chunk_47".
-    ✔ Ideal for structured docs: policies, contracts, technical manuals.
-    """
-
-    def __init__(self) -> None:
-        self.nodes: List[PageNode] = []
-
-    # ── Build ────────────────────────────────────────────────────────────────
-
-    def build(self, pages: List[dict]) -> None:
-        """
-        Embed every page and store PageNodes.
-        pages: list of {"page": int, "title": str, "content": str}
-        """
-        print(f"[PageIndex] Building index for {len(pages)} pages …")
-        texts      = [f"{p['title']}\n\n{p['content']}" for p in pages]
-        embeddings = embed(texts)
-
-        for page_dict, vec in zip(pages, embeddings):
-            self.nodes.append(
-                PageNode(
-                    page_num  = page_dict["page"],
-                    title     = page_dict["title"],
-                    content   = page_dict["content"],
-                    embedding = vec,
-                )
-            )
-        print(f"[PageIndex] Ready — {len(self.nodes)} pages indexed.\n")
-
-    # ── Retrieve ─────────────────────────────────────────────────────────────
-
-    def retrieve(self, query: str, top_k: int = 2) -> List[Tuple[PageNode, float]]:
-        """Return the top-k most relevant pages with cosine similarity scores."""
-        query_vec  = embed([query])                              # (1, D)
-        index_vecs = np.stack([n.embedding for n in self.nodes]) # (N, D)
-        scores     = cosine_similarity(query_vec, index_vecs)[0] # (N,)
-
-        ranked = sorted(
-            zip(self.nodes, scores.tolist()),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        return ranked[:top_k]
-
-    # ── Generate answer ──────────────────────────────────────────────────────
-
-    def query(self, question: str, top_k: int = 2) -> str:
-        """Retrieve relevant pages, then generate an answer with Llama via Groq."""
-        hits = self.retrieve(question, top_k=top_k)
-
-        context_parts = []
-        for node, score in hits:
-            context_parts.append(
-                f"=== Page {node.page_num}: {node.title} (score={score:.3f}) ===\n"
-                f"{node.content}"
-            )
-        context = "\n\n".join(context_parts)
-
-        print(f"  [PageIndex]  Retrieved pages : {[n.page_num for n, _ in hits]}")
-        print(f"               Similarity scores: {[round(s, 3) for _, s in hits]}")
-
-        system = (
-            "You are an HR assistant. Answer the employee's question using ONLY "
-            "the policy pages provided. If a table is present, preserve its structure "
-            "in your answer. Be concise and cite the page number at the end."
-        )
-        user = f"Context:\n{context}\n\nQuestion: {question}"
-
-        return llama_chat(system, user)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 2.  ChunkedRAG  — for side-by-side comparison
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@dataclass
-class Chunk:
-    page_num  : int
-    chunk_idx : int
-    text      : str
-    embedding : np.ndarray = field(default_factory=lambda: np.array([]))
-
-
-def _split_into_chunks(text: str, max_chars: int = 300) -> List[str]:
-    """Naive word-boundary chunking that simulates token-level chunking."""
-    words = text.split()
-    chunks, current = [], []
-    for word in words:
-        current.append(word)
-        if len(" ".join(current)) >= max_chars:
-            chunks.append(" ".join(current))
-            current = []
-    if current:
-        chunks.append(" ".join(current))
-    return chunks
-
-
-class ChunkedRAG:
-    """Traditional RAG: pages split into fixed-size chunks — included for comparison."""
-
-    def __init__(self, chunk_size_chars: int = 300) -> None:
-        self.chunks: List[Chunk] = []
-        self.chunk_size = chunk_size_chars
-
-    def build(self, pages: List[dict]) -> None:
-        print(f"[ChunkedRAG] Splitting {len(pages)} pages into ~{self.chunk_size}-char chunks …")
-        all_texts, meta = [], []
-
-        for page in pages:
-            full_text   = f"{page['title']}\n\n{page['content']}"
-            page_chunks = _split_into_chunks(full_text, self.chunk_size)
-            for idx, chunk_text in enumerate(page_chunks):
-                meta.append((page["page"], idx))
-                all_texts.append(chunk_text)
-
-        embeddings = embed(all_texts)
-        for (page_num, chunk_idx), text, vec in zip(meta, all_texts, embeddings):
-            self.chunks.append(
-                Chunk(page_num=page_num, chunk_idx=chunk_idx, text=text, embedding=vec)
-            )
-
-        print(f"[ChunkedRAG] Ready — {len(self.chunks)} chunks from {len(pages)} pages.\n")
-
-    def retrieve(self, query: str, top_k: int = 3) -> List[Tuple[Chunk, float]]:
-        query_vec  = embed([query])
-        index_vecs = np.stack([c.embedding for c in self.chunks])
-        scores     = cosine_similarity(query_vec, index_vecs)[0]
-        ranked = sorted(
-            zip(self.chunks, scores.tolist()),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        return ranked[:top_k]
-
-    def query(self, question: str, top_k: int = 3) -> str:
-        hits = self.retrieve(question, top_k=top_k)
-
-        context_parts = []
-        for chunk, score in hits:
-            context_parts.append(
-                f"--- Page {chunk.page_num}, chunk {chunk.chunk_idx} "
-                f"(score={score:.3f}) ---\n{chunk.text}"
-            )
-        context = "\n\n".join(context_parts)
-
-        print(f"  [ChunkedRAG] Retrieved chunks from pages: "
-              f"{[c.page_num for c, _ in hits]}")
-        print(f"               Similarity scores: {[round(s, 3) for _, s in hits]}")
-
-        system = (
-            "You are an HR assistant. Answer using ONLY the provided text snippets. "
-            "Be concise."
-        )
-        user = f"Context:\n{context}\n\nQuestion: {question}"
-
-        return llama_chat(system, user)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 3.  Demo — compare PageIndex vs ChunkedRAG on HR questions
-# ═══════════════════════════════════════════════════════════════════════════════
-
-QUESTIONS = [
+DEMO_QUESTIONS = [
     "What is the parental leave entitlement and how do I apply?",
-    "How do I claim expenses for a business trip and what are the hotel limits?",
+    "What are the hotel expense limits and how do I claim a business trip?",
     "How many annual leave days do I get after 4 years of service?",
 ]
 
-SEP = "═" * 72
+SEP = "=" * 68
 
 
-def run_demo() -> None:
-    # Build both indexes
-    page_index  = PageIndex()
-    chunked_rag = ChunkedRAG(chunk_size_chars=300)
+def run_demo(pages: List[dict] = None) -> None:
+    """Run PageIndex on sample (or provided) pages and print answers."""
+    pages = pages or SAMPLE_PAGES
 
-    page_index.build(HANDBOOK_PAGES)
-    chunked_rag.build(HANDBOOK_PAGES)
-
-    for q in QUESTIONS:
-        print(f"\n{SEP}")
-        print(f"  QUESTION: {q}")
-        print(SEP)
-
-        print("\n[PageIndex Answer]")
-        pi_answer = page_index.query(q, top_k=2)
-        print(textwrap.indent(pi_answer.strip(), "  "))
-
-        print("\n[ChunkedRAG Answer]")
-        rag_answer = chunked_rag.query(q, top_k=3)
-        print(textwrap.indent(rag_answer.strip(), "  "))
-
-    print(f"\n{SEP}")
-    print("  SUMMARY: PageIndex vs ChunkedRAG")
-    print(SEP)
-    print(textwrap.dedent("""\
-      PageIndex wins when:
-        • Pages contain tables, numbered steps, or structured lists.
-        • Each page naturally covers one complete topic.
-        • You want clean, citable answers ("See Page 3").
-
-      ChunkedRAG wins when:
-        • Pages are very long (>2 000 tokens) — exceed the LLM context window.
-        • Free-form prose where any 500-token window is self-contained.
-        • You need sub-page precision (e.g., one clause from a 40-clause page).
-    """))
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 4.  Bonus: Drop-in PDF loader  (replaces HANDBOOK_PAGES with a real PDF)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def load_pdf_pages(pdf_path: str) -> List[dict]:
-    """
-    Parse a real PDF into page-dicts for PageIndex.
-
-    pip install PyMuPDF
-    Usage:
-        pages = load_pdf_pages("employee_handbook.pdf")
-        pi = PageIndex()
-        pi.build(pages)
-        print(pi.query("What is the parental leave policy?"))
-    """
-    import fitz  # PyMuPDF
-
-    pages = []
-    doc   = fitz.open(pdf_path)
-    for i, page in enumerate(doc, start=1):
-        text = page.get_text("text").strip()
-        if not text:           # skip blank / image-only pages
-            continue
-        title = text.splitlines()[0][:60]   # first line as title proxy
-        pages.append({"page": i, "title": title, "content": text})
-    doc.close()
-    print(f"Loaded {len(pages)} text pages from {pdf_path}")
-    return pages
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 5.  Interactive Q&A (run from terminal)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def interactive_qa() -> None:
-    """
-    After building the index, let you ask custom questions in a loop.
-    Type 'exit' to quit.
-    """
     pi = PageIndex()
-    pi.build(HANDBOOK_PAGES)
+    pi.build(pages)
 
-    print("\nInteractive Q&A — PageIndex + Groq Llama")
-    print("Type your question or 'exit' to quit.\n")
+    for q in DEMO_QUESTIONS:
+        print(f"\n{SEP}")
+        print(f"  Q: {q}")
+        print(SEP)
+        answer = pi.query(q)
+        print(f"\n  A: {textwrap.indent(answer.strip(), '     ')}\n")
+
+
+def run_interactive(pages: List[dict] = None) -> None:
+    """Interactive Q&A loop — type questions, get answers, type 'exit' to quit."""
+    pages = pages or SAMPLE_PAGES
+
+    pi = PageIndex()
+    pi.build(pages)
+
+    print("PageIndex Interactive Q&A  |  Powered by Groq Llama-3.3-70B")
+    print("Type your question and press Enter. Type 'exit' to quit.\n")
 
     while True:
-        question = input("You: ").strip()
+        try:
+            question = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye!")
+            break
+
+        if not question:
+            continue
         if question.lower() in {"exit", "quit", "q"}:
             print("Goodbye!")
             break
-        if not question:
-            continue
-        answer = pi.query(question, top_k=2)
+
+        answer = pi.query(question)
         print(f"\nLlama: {answer}\n")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-if __name__ == "__main__":
-    import sys
+# ── Entry point ───────────────────────────────────────────────────────────────
 
-    # ── Usage ──────────────────────────────────────────────────────────────────
-    # python page_index_groq.py                     → full demo (default)
-    # python page_index_groq.py interactive          → interactive Q&A loop
-    # python page_index_groq.py path\to\file.pdf    → Q&A on a real PDF
-    # ──────────────────────────────────────────────────────────────────────────
+def main() -> None:
+    """
+    Usage:
+        python pageindex.py                   # demo with sample HR handbook
+        python pageindex.py interactive       # interactive Q&A with sample data
+        python pageindex.py path/to/file.pdf  # Q&A on your own PDF
+    """
+    args = sys.argv[1:]
 
-    if len(sys.argv) > 1:
-        arg = sys.argv[1]
-        if arg == "interactive":
-            interactive_qa()
-        elif arg.endswith(".pdf"):
-            # PDF mode: build PageIndex from real PDF, then go interactive
-            import os
-            if not os.path.exists(arg):
-                print(f"File not found: {arg}")
-                sys.exit(1)
-            pdf_pages = load_pdf_pages(arg)
-            pi = PageIndex()
-            pi.build(pdf_pages)
-            print(f"\nPDF loaded — {len(pdf_pages)} pages indexed.")
-            print("Type your question or 'exit' to quit.\n")
-            while True:
-                question = input("You: ").strip()
-                if question.lower() in {"exit", "quit", "q"}:
-                    print("Goodbye!")
-                    break
-                if not question:
-                    continue
-                answer = pi.query(question, top_k=2)
-                print(f"\nLlama: {answer}\n")
-        else:
-            print(f"Unknown argument: {arg}")
-            print("Usage:")
-            print("  python page_index_groq.py                  # demo")
-            print("  python page_index_groq.py interactive       # Q&A loop")
-            print("  python page_index_groq.py file.pdf          # Q&A on PDF")
-    else:
+    if not args:
         run_demo()
+
+    elif args[0] == "interactive":
+        run_interactive()
+
+    elif args[0].lower().endswith(".pdf"):
+        pdf_path = args[0]
+        if not os.path.exists(pdf_path):
+            print(f"Error: file not found — {pdf_path}")
+            sys.exit(1)
+        pdf_pages = load_pdf(pdf_path)
+        run_interactive(pages=pdf_pages)
+
+    else:
+        print(__doc__)
+        print("Unknown argument:", args[0])
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
