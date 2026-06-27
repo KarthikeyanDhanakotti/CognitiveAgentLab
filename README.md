@@ -30,3 +30,15 @@ This repository focuses on designing and building real-world Generative AI syste
 ---
 ## Goal
 To design scalable, enterprise-grade AI systems with measurable business impact. 
+
+---
+
+## About Me
+Karthikeyan Dhanakotti
+
+Senior Data Science Leader at Microsoft specializing in enterprise-scale AI/ML and Generative AI systems.
+Experienced in building production-grade AI/ML models, LLM-based applications, AI agents, and RAG pipelines. Focused on designing scalable, high-impact AI systems.
+Actively present at technical conferences (including MLADS) on topics such as LLM evaluation, Agentic AI, and enterprise GenAI architectures.
+Passionate about mentoring engineers and data scientists, sharing knowledge, and driving adoption of modern AI/ML practices.
+
+Focused on building intelligent systems with measurable business impact.
