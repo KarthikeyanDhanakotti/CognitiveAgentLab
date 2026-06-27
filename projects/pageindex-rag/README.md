@@ -1,6 +1,57 @@
-# PageIndex - Page-Level Retrieval for RAG Systems
+# PageIndex — Page-Level Retrieval for RAG Systems
 
-> **A smarter retrieval strategy for structured documents using page-level indexing, local embeddings, and free LLMs (Groq Llama).**
+A production-oriented retrieval framework that improves LLM answer quality by indexing full document pages instead of chunked fragments. Tables, numbered steps, and structured content stay intact — exactly as a human would read them.
+
+![Python](https://img.shields.io/badge/Python-3.12-blue) ![Groq](https://img.shields.io/badge/LLM-Groq%20Llama%203.3--70B-purple) ![Embeddings](https://img.shields.io/badge/Embeddings-sentence--transformers-orange) ![Cost](https://img.shields.io/badge/Cost-Free-brightgreen)
+
+---
+
+## Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Set your free Groq API key  →  https://console.groq.com/keys
+$env:GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxxxxx"
+
+# 3. Run
+python pageindex.py                   # demo: PageIndex on sample HR handbook
+python pageindex.py interactive       # interactive Q&A loop
+python pageindex.py your_doc.pdf      # Q&A on your own PDF
+```
+
+**Example output:**
+```
+Q: What is the parental leave entitlement?
+
+Retrieved pages: [2]   Score: 0.847
+
+A: According to Page 2 (Parental Leave Policy):
+
+| Leave Type                  | Duration     |
+|-----------------------------|----------------|
+| Maternity (birth/adoption)  | 26 weeks     |
+| Paternity                   | 6 weeks      |
+| Shared parental leave       | Up to 37 wks |
+
+Apply by: notifying manager 8 weeks early → submitting HR-PL-01 form.
+(See Page 2)
+```
+
+---
+
+## Repo Structure
+
+```
+CognitiveAgentLab/
+├── README.md
+└── projects/
+    └── pageindex-rag/
+        ├── PAGE_INDEX.md      ← this file
+        ├── pageindex.py       ← runnable implementation
+        └── requirements.txt   ← dependencies
+```
 
 ---
 
@@ -213,7 +264,7 @@ PageIndex retrieves:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐  │
-│  │   Document   │───▶│  Page Extractor  │───▶│  Page Store    │
+│  │   Document   │───▶│  Page Extractor  │───▶│  Page Store  │  │
 │  │  (PDF/Text)  │    │  (PyMuPDF)       │    │  [P1..PN]    │  │
 │  └──────────────┘    └──────────────────┘    └──────┬───────┘  │
 │                                                      │          │
@@ -309,7 +360,33 @@ Return answer with page citation
 END
 ```
 
-### 8.3 Mermaid Diagram
+### 8.3 Visual Flow
+
+```
+   User Query
+       │
+       ▼
+  Query Embedding
+  (sentence-transformers)
+       │
+       ▼
+  Page Retrieval
+  Cosine Similarity → Top-K pages
+       │
+       ▼
+  PageIndex Ranking
+  Full page text assembled
+       │
+       ▼
+  LLM  (Groq Llama-3.3-70B)
+  "Answer using ONLY these pages"
+       │
+       ▼
+  Answer  +  Page Citation
+  (tables & steps intact)
+```
+
+### 8.4 Mermaid Diagram
 
 ```mermaid
 graph TD
@@ -334,6 +411,15 @@ graph TD
 
 ## 9. Complete Code
 
+> **Which file to run?**
+>
+> | File | Purpose | Use this? |
+> |---|---|---|
+> | `page_index_groq.py` | **Full production file** — PageIndex + ChunkedRAG comparison, interactive mode, PDF loader, all modes | ✅ **YES — run this** |
+> | Code block below | Condensed illustration for reading/learning — stripped down to core logic only | 📖 Read only |
+>
+> **Always run `page_index_groq.py`** from your terminal. The code block below is a simplified reference version for understanding the concept.
+
 ### Prerequisites
 
 ```bash
@@ -342,7 +428,7 @@ pip install groq sentence-transformers scikit-learn numpy PyMuPDF
 
 Get a **free** Groq API key: [https://console.groq.com/keys](https://console.groq.com/keys)
 
-### Full Implementation
+### Condensed Reference (for reading — `page_index_groq.py` is the full runnable file)
 
 ```python
 """
@@ -516,19 +602,21 @@ pi.build(pages)
 print(pi.query("What is the refund policy?"))
 ```
 
-### Run Commands (PowerShell)
+### ▶️ Run `page_index_groq.py` (PowerShell)
+
+> This is the **actual file you execute**. All three modes are built in.
 
 ```powershell
 # Step 1: Navigate to folder
-cd "C:\path\to\your\project"
+cd "C:\Users\kartdh\OneDrive - Microsoft\Desktop\Model\Domain_Intent"
 
-# Step 2: Set API key
+# Step 2: Set your free Groq API key
 $env:GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxxxxx"
 
-# Step 3: Run
-.\.venv\Scripts\python.exe page_index_groq.py             # demo mode
-.\.venv\Scripts\python.exe page_index_groq.py interactive  # Q&A loop
-.\.venv\Scripts\python.exe page_index_groq.py document.pdf # your PDF
+# Step 3: Run — pick a mode:
+.\.venv\Scripts\python.exe page_index_groq.py              # Mode 1: PageIndex vs ChunkedRAG demo
+.\.venv\Scripts\python.exe page_index_groq.py interactive  # Mode 2: Interactive Q&A loop
+.\.venv\Scripts\python.exe page_index_groq.py document.pdf # Mode 3: Q&A on your own PDF
 ```
 
 ---
@@ -617,4 +705,15 @@ PageIndex is not a replacement for chunked RAG — it is the **right tool for st
 
 ---
 
+## Files in This Project
+
+| File | Description |
+|---|---|
+| `pageindex.py` | **Run this** — full PageIndex implementation + demo + interactive + PDF loader |
+| `requirements.txt` | Python dependencies |
+| `PAGE_INDEX.md` | This documentation |
+
+---
+
+*Built for CognitiveAgentLab — June 2026*
 
