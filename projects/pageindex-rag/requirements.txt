@@ -1,0 +1,15 @@
+# PageIndex — Page-Level Retrieval for RAG Systems
+# https://github.com/your-username/CognitiveAgentLab
+
+# LLM inference (Groq free tier)
+groq>=0.9.0
+
+# Local embeddings — no API key needed
+sentence-transformers>=2.7.0
+
+# Vector similarity
+scikit-learn>=1.4.0
+numpy>=1.26.0
+
+# PDF parsing (optional — only needed for load_pdf())
+PyMuPDF>=1.24.0
