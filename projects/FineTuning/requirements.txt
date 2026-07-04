@@ -1,0 +1,25 @@
+# Core deep learning / fine-tuning stack (matches the Colab notebooks)
+torch>=2.6.0
+torchvision
+transformers>=4.45.0,<4.47.0
+accelerate>=0.34.0
+peft>=0.12.0
+trl>=0.10.0
+bitsandbytes>=0.43.0
+datasets>=2.20.0
+huggingface-hub>=0.24.0
+
+# Data prep (Module 2 — WikiDoc reformatting script)
+openai>=1.40.0
+python-dotenv>=1.0.0
+
+# Evaluation (Module 4)
+langsmith>=0.1.100
+langchain>=0.2.0
+langchain-openai>=0.1.0
+
+# Analysis / utility
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+tqdm>=4.66.0
