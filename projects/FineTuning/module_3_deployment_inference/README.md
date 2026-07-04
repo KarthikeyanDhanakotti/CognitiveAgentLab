@@ -1,6 +1,6 @@
-﻿# Module 3 â€” Deployment & Inference
+# Module 3 — Deployment & Inference
 
-**Duration in webinar:** ~30 minutes Â· **GPU needed:** âœ… Yes (Colab T4)
+**Duration in webinar:** ~30 minutes · **GPU needed:** ✅ Yes (Colab T4)
 
 ## What this module answers
 
@@ -14,14 +14,14 @@
 The adapter you pushed in Module 2 is a **patch**, not a full model.
 
 ```
-your-username/healthcare-assistant-lora-v2/     (â‰ˆ 20â€“50 MB)
-â”œâ”€â”€ adapter_config.json          â† LoRA config (r, alpha, target modules)
-â”œâ”€â”€ adapter_model.safetensors    â† Trained LoRA weights (~10â€“50 MB)
-â”œâ”€â”€ tokenizer.json
-â”œâ”€â”€ tokenizer_config.json
-â””â”€â”€ special_tokens_map.json
+your-username/healthcare-assistant-lora-v2/     (≈ 20–50 MB)
+├── adapter_config.json          ← LoRA config (r, alpha, target modules)
+├── adapter_model.safetensors    ← Trained LoRA weights (~10–50 MB)
+├── tokenizer.json
+├── tokenizer_config.json
+└── special_tokens_map.json
 
-Qwen/Qwen2.5-1.5B-Instruct                       (â‰ˆ 3 GB, stays at HF)
+Qwen/Qwen2.5-1.5B-Instruct                       (≈ 3 GB, stays at HF)
 ```
 
 At runtime: download base (cached after first pull) + download adapter + apply = <1 second.
@@ -30,15 +30,15 @@ At runtime: download base (cached after first pull) + download adapter + apply =
 
 ```python
 ft_model.enable_adapter_layers()   # Fine-tuned behavior
-ft_model.disable_adapter_layers()  # Base model behavior â€” same model object!
+ft_model.disable_adapter_layers()  # Base model behavior — same model object!
 ```
 
-You get **both models in one load** â€” saves ~1 GB VRAM vs loading them separately.
+You get **both models in one load** — saves ~1 GB VRAM vs loading them separately.
 
 ## Files
 
-- [`webinar_script.md`](webinar_script.md) â€” presenter script (15 min lecture + 15 min live demo)
-- [`notebooks/03_hf_deploy_inference.ipynb`](notebooks/03_hf_deploy_inference.ipynb) â€” load adapter from Hub, run inference, export results for Module 4
+- [`webinar_script.md`](webinar_script.md) — presenter script (15 min lecture + 15 min live demo)
+- [`notebooks/03_hf_deploy_inference.ipynb`](notebooks/03_hf_deploy_inference.ipynb) — load adapter from Hub, run inference, export results for Module 4
 
 ## Open in Colab
 
@@ -48,7 +48,7 @@ You get **both models in one load** â€” saves ~1 GB VRAM vs loading them se
 
 | Strategy | Example | Cold start | Cost model | Good for |
 |---|---|---|---|---|
-| Serverless | SageMaker Serverless, HF Endpoints | 30â€“120s | Pay-per-request | <100 req/day |
+| Serverless | SageMaker Serverless, HF Endpoints | 30–120s | Pay-per-request | <100 req/day |
 | Dedicated GPU | SageMaker Real-time, Azure ML | None | Pay-per-hour | Production w/ SLA |
 | Container (vLLM/TGI) | ECS, EKS, EC2 | None | Pay-per-hour | Multi-model, custom |
 | Model-as-a-Service | Bedrock, Azure OpenAI | None | Pay-per-token | Zero-ops |

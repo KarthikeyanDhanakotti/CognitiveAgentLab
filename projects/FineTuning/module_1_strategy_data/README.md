@@ -1,6 +1,6 @@
-﻿# Module 1 â€” Strategy & Dataset Preparation
+# Module 1 — Strategy & Dataset Preparation
 
-**Duration in webinar:** ~50 minutes Â· **GPU needed:** âŒ No
+**Duration in webinar:** ~50 minutes · **GPU needed:** ❌ No
 
 ## What this module answers
 
@@ -10,20 +10,20 @@
 
 ## Files
 
-- [`webinar_script.md`](webinar_script.md) â€” full presenter script (25 min lecture + 25 min hands-on)
-- [`notebooks/01_dataset_quality_audit.ipynb`](notebooks/01_dataset_quality_audit.ipynb) â€” attendees run this in Colab
+- [`webinar_script.md`](webinar_script.md) — full presenter script (25 min lecture + 25 min hands-on)
+- [`notebooks/01_dataset_quality_audit.ipynb`](notebooks/01_dataset_quality_audit.ipynb) — attendees run this in Colab
 
 ## Key results the attendees should see
 
 | Metric | ChatDoctor (v1 data) | WikiDoc reformatted (v2 data) |
 |---|---|---|
 | Examples | 112,165 | 2,100 |
-| Persona contamination ("Hi, Chat Doctor hereâ€¦") | **63.1%** | **0.0%** |
+| Persona contamination ("Hi, Chat Doctor here…") | **63.1%** | **0.0%** |
 | Boilerplate sign-offs | 28.2% | 0.0% |
 | Safety disclaimers | 3.2% | 99.4% |
 | Avg answer length (chars) | 603 | 910 |
 
-The audit numbers *predict* what will happen in Module 2 â€” v1 will damage the model,
+The audit numbers *predict* what will happen in Module 2 — v1 will damage the model,
 v2 will improve it.
 
 ## Open in Colab

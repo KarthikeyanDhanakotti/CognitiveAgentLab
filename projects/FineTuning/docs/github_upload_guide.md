@@ -1,14 +1,14 @@
-﻿# GitHub Upload Guide â€” `CognitiveAgentLab/FineTuning`
+# GitHub Upload Guide — `CognitiveAgentLab/FineTuning`
 
 This guide walks you through uploading this entire `FineTuning/` project as a
 subfolder inside your existing [CognitiveAgentLab](https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab)
 repository.
 
-There are three ways to do it â€” pick the one you're comfortable with.
+There are three ways to do it — pick the one you're comfortable with.
 
 ---
 
-## Option A Â· Command line (recommended)
+## Option A · Command line (recommended)
 
 **Prerequisites:** Git installed, GitHub CLI (`gh`) optional but nice.
 
@@ -52,32 +52,32 @@ All the Colab badges in every `README.md` will start working automatically.
 
 ---
 
-## Option B Â· GitHub web UI (drag-and-drop)
+## Option B · GitHub web UI (drag-and-drop)
 
 Good if you don't want to install Git.
 
 1. Go to https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab
-2. Click **Add file â†’ Create new file**
-3. In the file name field, type: `FineTuning/README.md` â€” the `FineTuning/` prefix
+2. Click **Add file → Create new file**
+3. In the file name field, type: `FineTuning/README.md` — the `FineTuning/` prefix
    creates the folder for you
 4. Commit that placeholder file
 5. Navigate into the new `FineTuning/` folder in the UI
-6. Click **Add file â†’ Upload files**
+6. Click **Add file → Upload files**
 7. Drag the entire contents of
    `C:\Users\kartdh\OneDrive - Microsoft\Desktop\Model\FineTuning\FineTuning\`
-   into the upload area â€” **including subfolders**. GitHub preserves folder structure.
+   into the upload area — **including subfolders**. GitHub preserves folder structure.
 8. Scroll down, add commit message: *"Add Week 9 Fine-Tuning webinar project"*
 9. Click **Commit changes**
 
-> âš ï¸ The web UI has a **100 files / 25 MB per commit** limit. If you hit it, upload the
+> ⚠️ The web UI has a **100 files / 25 MB per commit** limit. If you hit it, upload the
 > four `module_*` folders in separate commits.
 
 ---
 
-## Option C Â· GitHub Desktop
+## Option C · GitHub Desktop
 
 1. Open [GitHub Desktop](https://desktop.github.com/)
-2. **File â†’ Clone repository** â†’ select `KarthikeyanDhanakotti/CognitiveAgentLab`
+2. **File → Clone repository** → select `KarthikeyanDhanakotti/CognitiveAgentLab`
 3. In Windows Explorer, copy the entire `FineTuning\` folder from
    `C:\Users\kartdh\OneDrive - Microsoft\Desktop\Model\FineTuning\` into the
    cloned repo folder
@@ -88,17 +88,17 @@ Good if you don't want to install Git.
 
 ---
 
-## After the upload â€” verification checklist
+## After the upload — verification checklist
 
 - [ ] Open `https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab/tree/main/FineTuning`
       and confirm all four `module_*` folders are visible.
-- [ ] Click any **Open in Colab** badge in the top-level README â€” it should open
+- [ ] Click any **Open in Colab** badge in the top-level README — it should open
       the notebook in Google Colab.
-- [ ] Confirm `.gitignore` was uploaded (it starts with a dot, some UIs hide it â€”
+- [ ] Confirm `.gitignore` was uploaded (it starts with a dot, some UIs hide it —
       look for it in the file list, not in Windows Explorer's default view).
-- [ ] Confirm the `.pptx` in `docs/` uploaded correctly (it's binary â€” GitHub will
+- [ ] Confirm the `.pptx` in `docs/` uploaded correctly (it's binary — GitHub will
       show "View raw" instead of previewing).
-- [ ] Check file size â€” the whole `FineTuning/` folder should be **under 15 MB**.
+- [ ] Check file size — the whole `FineTuning/` folder should be **under 15 MB**.
       If it's larger, something like a model checkpoint or dataset got in.
 
 ---
@@ -111,8 +111,8 @@ main README:
 ```markdown
 ## Projects
 
-- [`FineTuning/`](FineTuning/) â€” Week 9 webinar: fine-tuning a healthcare LLM
-  end-to-end (QLoRA â†’ HF Hub â†’ LangSmith eval) on Google Colab.
+- [`FineTuning/`](FineTuning/) — Week 9 webinar: fine-tuning a healthcare LLM
+  end-to-end (QLoRA → HF Hub → LangSmith eval) on Google Colab.
 ```
 
 ---
@@ -122,9 +122,9 @@ main README:
 The `.gitignore` in this project already blocks the following, but double-check
 they didn't sneak in:
 
-- `.env` files with API keys â€” **never commit these**
+- `.env` files with API keys — **never commit these**
 - Model checkpoints (`*.safetensors`, `*.bin`, `adapter_model.safetensors` from your
-  own training run â€” the ones in `results/` are metadata JSONs, those are fine)
+  own training run — the ones in `results/` are metadata JSONs, those are fine)
 - Colab session artifacts (`sample_data/`, `runs/`)
 - `__pycache__/`, `.ipynb_checkpoints/`
 
@@ -169,7 +169,7 @@ other than `FineTuning` inside the repo.
 Once uploaded, you can tag the state used for the webinar:
 
 ```powershell
-git tag -a v1.0-webinar -m "Week 9 Fine-Tuning webinar â€” final state"
+git tag -a v1.0-webinar -m "Week 9 Fine-Tuning webinar — final state"
 git push origin v1.0-webinar
 ```
 
