@@ -15,8 +15,8 @@ The adapter you pushed in Module 2 is a **patch**, not a full model.
 
 ```
 your-username/healthcare-assistant-lora-v2/     (≈ 20–50 MB)
-├── adapter_config.json          ← LoRA config (r, alpha, target modules)
-├── adapter_model.safetensors    ← Trained LoRA weights (~10–50 MB)
+├── adapter_config.json
+├── adapter_model.safetensors
 ├── tokenizer.json
 ├── tokenizer_config.json
 └── special_tokens_map.json

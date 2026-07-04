@@ -1,4 +1,4 @@
-# Fine-Tuning & Domain Adaptation — Webinar (Week 9)
+# Fine-Tuning & Domain Adaptation
 
 > **End-to-end webinar project** on fine-tuning open-source LLMs for a domain (healthcare),
 > deploying them, and evaluating them — all runnable on **Google Colab (free T4 GPU)**.
@@ -29,43 +29,43 @@ The workshop is built around a **deliberate failure → recovery arc**:
 
 ```text
 FineTuning/
-├── README.md                              ← You are here
-├── requirements.txt                       ← Local (non-Colab) install list
+├── README.md
+├── requirements.txt
 ├── .gitignore
 ├── LICENSE
 ├── docs/
-│   ├── Week9_FineTuning_Domain_Adaptation.pptx     ← Original webinar deck
-│   ├── webinar_master_script.md                    ← Full 4-hour presenter script
-│   └── github_upload_guide.md                      ← How to push to CognitiveAgentLab
-├── assets/                                          ← Diagrams / screenshots
+│   ├── Week9_FineTuning_Domain_Adaptation.pptx
+│   ├── webinar_master_script.md
+│   └── github_upload_guide.md
+├── assets/
 │
 ├── module_1_strategy_data/
 │   ├── README.md
-│   ├── webinar_script.md                           ← Speaker notes (~50 min)
+│   ├── webinar_script.md
 │   └── notebooks/
-│       └── 01_dataset_quality_audit.ipynb          ← Colab-runnable
+│       └── 01_dataset_quality_audit.ipynb
 │
 ├── module_2_finetuning_qlora/
 │   ├── README.md
-│   ├── webinar_script.md                           ← Speaker notes (~70 min)
+│   ├── webinar_script.md
 │   ├── notebooks/
-│   │   ├── 02a_qlora_training_v1_chatdoctor.ipynb  ← "how NOT to fine-tune"
-│   │   └── 02b_qlora_training_v2_wikidoc.ipynb     ← "how to fine-tune"
+│   │   ├── 02a_qlora_training_v1_chatdoctor.ipynb
+│   │   └── 02b_qlora_training_v2_wikidoc.ipynb
 │   ├── scripts/
-│   │   └── data_prep_v2.py                         ← Reformats WikiDoc via GPT-4o-mini
+│   │   └── data_prep_v2.py
 │   └── results/
-│       ├── benchmark_results_v1.json               ← Pre-computed (backup for live demo)
+│       ├── benchmark_results_v1.json
 │       └── benchmark_results_v2.json
 │
 ├── module_3_deployment_inference/
 │   ├── README.md
-│   ├── webinar_script.md                           ← Speaker notes (~30 min)
+│   ├── webinar_script.md
 │   └── notebooks/
 │       └── 03_hf_deploy_inference.ipynb
 │
 └── module_4_evaluation_langsmith/
     ├── README.md
-    ├── webinar_script.md                           ← Speaker notes (~50 min)
+    ├── webinar_script.md
     ├── notebooks/
     │   └── 04_langsmith_evaluation.ipynb
     └── results/
