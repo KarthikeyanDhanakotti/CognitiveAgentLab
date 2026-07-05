@@ -1,0 +1,26 @@
+# Pinned dependencies for the Naive RAG notebook
+# Tested with Python 3.9-3.12
+
+# LLM client
+groq>=0.11.0
+
+# LangChain (loaders, text splitter, vector store, embeddings wrapper)
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-text-splitters>=0.3.0
+langchain-huggingface>=0.1.0
+
+# Embeddings + vector store
+sentence-transformers>=3.0.0
+faiss-cpu>=1.8.0
+
+# PDF loading
+pymupdf>=1.24.0
+
+# Utilities
+python-dotenv>=1.0.0
+numpy>=1.26.0
+
+# Keep Google Colab's google-colab package happy
+requests>=2.32.4,<2.33
