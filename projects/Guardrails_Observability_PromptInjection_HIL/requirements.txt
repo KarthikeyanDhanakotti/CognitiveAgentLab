@@ -1,0 +1,19 @@
+# AI Agent Workshop — Guardrails, Observability, Prompt Injection & HITL
+# https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab
+
+# LLM inference (Groq free tier)
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-groq>=0.2.0
+
+# Agent orchestration
+langgraph>=0.2.0
+
+# Observability & tracing
+langsmith>=0.1.100
+
+# Guardrails / schema validation
+pydantic>=2.7.0
+
+# Env / secrets
+python-dotenv>=1.0.1
