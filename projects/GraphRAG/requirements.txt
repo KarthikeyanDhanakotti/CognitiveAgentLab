@@ -1,0 +1,15 @@
+# GraphRAG — Knowledge-Graph-Enhanced RAG
+# https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab
+
+# Microsoft GraphRAG framework
+graphrag>=0.3.0
+
+# LLM SDKs (works with OpenAI or Azure OpenAI)
+openai>=1.40.0
+
+# Parsing / utilities
+beautifulsoup4>=4.12.0
+pyyaml>=6.0.1
+
+# Env / secrets
+python-dotenv>=1.0.1

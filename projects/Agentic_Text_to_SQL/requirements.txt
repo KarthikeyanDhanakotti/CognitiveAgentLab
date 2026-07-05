@@ -1,0 +1,19 @@
+# Agentic Text-to-SQL — Natural Language → SQL with LangGraph
+# https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab
+
+# LLM inference (Groq free tier)
+langchain-groq>=0.2.0
+langchain-core>=0.3.0
+groq>=0.11.0
+
+# Agent orchestration
+langgraph>=0.2.0
+
+# Database
+SQLAlchemy>=2.0.0
+
+# UI
+gradio>=4.44.0
+
+# Env / secrets
+python-dotenv>=1.0.1

@@ -1,0 +1,13 @@
+# LLM as a Judge — Evaluation Design Patterns
+# https://github.com/KarthikeyanDhanakotti/CognitiveAgentLab
+
+# LLM inference (Groq free tier)
+langchain-groq>=0.2.0
+langchain-core>=0.3.0
+groq>=0.11.0
+
+# Structured outputs for judges
+pydantic>=2.7.0
+
+# Env / secrets
+python-dotenv>=1.0.1
