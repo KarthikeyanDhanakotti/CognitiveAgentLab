@@ -1,0 +1,26 @@
+# Core LangChain 0.3+ stack
+langchain>=0.3,<0.4
+langchain-core>=0.3,<0.4
+langchain-community>=0.3,<0.4
+langchain-groq>=0.3,<1.0
+langchain-text-splitters>=0.3,<0.4
+langchain-huggingface>=0.1,<0.4
+
+# Retrieval + models
+sentence-transformers>=2.7
+faiss-cpu>=1.7
+rank_bm25>=0.2.2
+pymupdf>=1.24
+
+# LLM client
+groq>=0.11
+python-dotenv>=1.0
+
+# Evaluation
+ragas>=0.2.10,<0.3
+datasets>=3.0
+pandas>=2.0
+matplotlib>=3.7
+
+# HTTP pin to avoid Colab conflict warning (harmless outside Colab)
+requests>=2.32.4,<2.33
