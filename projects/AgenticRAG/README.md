@@ -94,4 +94,4 @@ python AgenticRAG_Architecture_Diagram.py
 
 ## Author
 
-**Karthikeyan Dhanakotti** ([@KarthikeyanDhanakotti](https://github.com/KarthikeyanDhanakotti)) · MSD AI-COE
+**Karthikeyan Dhanakotti** ([@KarthikeyanDhanakotti](https://github.com/KarthikeyanDhanakotti))
