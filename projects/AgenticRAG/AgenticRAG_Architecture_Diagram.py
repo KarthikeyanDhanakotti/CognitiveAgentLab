@@ -41,7 +41,7 @@ from matplotlib.patches import (
     Rectangle,
 )
 
-OUTPUT_PATH = Path(__file__).with_name("AgenticRAG_Architecture.png")
+OUTPUT_PATH = Path(__file__).with_name("AgenticRAG_Architecture_Detailed.png")
 
 # ---------------------------------------------------------------------------
 # Palette — matches the sketch (blue tiers, purple loop, green knowledge,
