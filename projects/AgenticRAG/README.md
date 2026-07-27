@@ -13,8 +13,8 @@ This project pairs a working notebook ([`AgenticRAG.ipynb`](AgenticRAG.ipynb)) w
 | File | Purpose |
 | --- | --- |
 | [`AgenticRAG.ipynb`](AgenticRAG.ipynb) | End-to-end notebook: agent loop, tools, retrieval-quality pipeline, verifier, RAGAS eval. Runs on Colab CPU. |
-| [`AgenticRAG_Architecture_Diagram.py`](AgenticRAG_Architecture_Diagram.py) | Standalone matplotlib script that renders the reference architecture PNG. |
-| [`AgenticRAG_Architecture.png`](AgenticRAG_Architecture.png) | Rendered one-page architecture diagram (200 dpi, ~800 KB). |
+| [`AgenticRAG.py`](AgenticRAG.py) | Plain-script export of the notebook. Runs top-to-bottom with `python AgenticRAG.py` (needs `GROQ_API_KEY`). |
+| [`AgenticRAG_Architecture.png`](AgenticRAG_Architecture.png) | One-page reference architecture diagram. |
 | [`requirements.txt`](requirements.txt) | Pinned dependency versions (same stack as the AdvancedRAG project). |
 
 ---
@@ -63,14 +63,6 @@ jupyter lab AgenticRAG.ipynb
 ```
 
 The notebook auto-downloads the demo PDF — *"Attention Is All You Need"* — and runs four benchmark questions end-to-end.
-
-### Regenerate the architecture diagram
-
-```bash
-pip install matplotlib
-python AgenticRAG_Architecture_Diagram.py
-# → writes AgenticRAG_Architecture.png (200 dpi, portrait)
-```
 
 ---
 
