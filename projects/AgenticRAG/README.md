@@ -13,7 +13,6 @@ This project pairs a working notebook ([`AgenticRAG.ipynb`](AgenticRAG.ipynb)) w
 | File | Purpose |
 | --- | --- |
 | [`AgenticRAG.ipynb`](AgenticRAG.ipynb) | End-to-end notebook: agent loop, tools, retrieval-quality pipeline, verifier, RAGAS eval. Runs on Colab CPU. |
-| [`AgenticRAG.py`](AgenticRAG.py) | Plain-script export of the notebook. Runs top-to-bottom with `python AgenticRAG.py` (needs `GROQ_API_KEY`). |
 | [`AgenticRAG_Architecture.png`](AgenticRAG_Architecture.png) | One-page reference architecture diagram. |
 | [`requirements.txt`](requirements.txt) | Pinned dependency versions (same stack as the AdvancedRAG project). |
 
